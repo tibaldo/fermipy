@@ -677,6 +677,8 @@ class SEDPlotter(object):
         ax = kwargs.pop('ax', plt.gca())
         llhcut = kwargs.pop('llhcut', -2.70)
         cmap = kwargs.pop('cmap', 'BuGn')
+        plotcb = kwargs.pop('plotcb', True)
+        alpha = kwargs.pop('alpha', 1.0)
         cmap_trunc_lo = kwargs.pop('cmap_trunc_lo', None)
         cmap_trunc_hi = kwargs.pop('cmap_trunc_hi', None)
 
@@ -689,12 +691,12 @@ class SEDPlotter(object):
 
         fluxM = np.arange(fmin, fmax, 0.01)
         fbins = len(fluxM)
-        llhMatrix = np.zeros((len(sed['e_ctr']), fbins))
+        llhMatrix = np.zeros((len(sed['e_ref']), fbins))
 
         # loop over energy bins
-        for i in range(len(sed['e_ctr'])):
+        for i in range(len(sed['e_ref'])):
             m = sed['norm_scan'][i] > 0
-            e2dnde_scan = sed['norm_scan'][i][m] * sed['ref_e2dnde'][i]
+            e2dnde_scan = sed['norm_scan'][i][m] * sed['ref_dnde'][i] * sed['e_ref'][i] **2.
             flux = np.log10(e2dnde_scan)
             logl = sed['dloglike_scan'][i][m]
             logl -= np.max(logl)
@@ -711,19 +713,22 @@ class SEDPlotter(object):
         if cmap_trunc_lo is not None or cmap_trunc_hi is not None:
             cmap = truncate_colormap(cmap, cmap_trunc_lo, cmap_trunc_hi, 1024)
 
-        xedge = 10**np.insert(sed['loge_max'], 0, sed['loge_min'][0])
+        xedge = np.insert(sed['e_max'], 0, sed['e_min'][0])
         yedge = np.logspace(fmin, fmax, fbins)
         xedge, yedge = np.meshgrid(xedge, yedge)
         im = ax.pcolormesh(xedge, yedge, llhMatrix.T,
                            vmin=llhcut, vmax=0, cmap=cmap,
-                           linewidth=0)
-        cb = plt.colorbar(im)
-        cb.set_label('Delta LogLikelihood')
+                           linewidth=0, alpha = alpha)
+        if plotcb:
+            cb = plt.colorbar(im)
+            cb.set_label('Delta LogLikelihood')
 
         plt.gca().set_ylim(10 ** fmin, 10 ** fmax)
         plt.gca().set_yscale('log')
         plt.gca().set_xscale('log')
         plt.gca().set_xlim(sed['e_min'][0], sed['e_max'][-1])
+
+        return im
 
     @staticmethod
     def plot_flux_points(sed, **kwargs):
